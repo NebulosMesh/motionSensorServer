@@ -5,7 +5,7 @@
 
    ```
    [Unit]
-   Description=My Sample Service
+   Description=Eye Service
    After=multi-user.target
 
    [Service]
