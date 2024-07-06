@@ -2,7 +2,9 @@
 
 1. scp the client into your home directory on the pi
 2. create new service with `sudo nano /lib/systemd/system/eye.service` and add the following:
-   `[Unit]
+
+   ```
+   [Unit]
    Description=My Sample Service
    After=multi-user.target
 
@@ -11,7 +13,8 @@
    ExecStart=/usr/bin/python3 /home/pi/client/main.py > /home/pi/eye.log 2>&1
 
    [Install]
-   WantedBy=multi-user.target`
+   WantedBy=multi-user.target
+   ```
 
 3. give service permission: `sudo chmod 644 /lib/systemd/system/eye.service`
 4. reload systemd daemon `sudo systemctl daemon-reload`
