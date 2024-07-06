@@ -59,6 +59,7 @@ func (udp *UDP) GetBufferFromSender() error {
 		return err
 	}
 	udp.Buf = buf
+	fmt.Println(remoteAddr)
 	udp.remoteAddr = &remoteAddr
 	return nil
 }
