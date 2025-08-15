@@ -1,30 +1,51 @@
+# Build stage
+FROM golang:1.23-alpine AS builder
 
-FROM golang:1.24-bookworm AS base
+# Install build dependencies
+RUN apk add --no-cache git
 
-# Set destination for COPY
-WORKDIR /build
+# Set working directory
+WORKDIR /app
 
-RUN apt-get update 
-RUN apt-get install -y ca-certificates
-
-# Download Go modules
+# Copy go mod files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
-# Copy the source code. Note the slash at the end, as explained in
-# https://docs.docker.com/reference/dockerfile/#copy
+# Copy source code
 COPY . .
 
-# Build
-RUN go build -o /orchistrator
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
+# Final stage
+FROM alpine:latest
 
-# Optional:
-# To bind to a TCP port, runtime parameters must be supplied to the docker command.
-# But we can document in the Dockerfile what ports
-# the application is going to listen on by default.
-# https://docs.docker.com/reference/dockerfile/#expose
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata
+
+# Create non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /app/main .
+
+# Change ownership
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
 EXPOSE 8080
 
-# Run
-CMD ["/orchistrator"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/status || exit 1
+
+# Default command
+CMD ["./main", "-serial=/dev/ttyUSB0", "-baud=115200", "-port=8080"]

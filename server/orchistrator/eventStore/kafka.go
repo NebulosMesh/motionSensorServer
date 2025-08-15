@@ -1,16 +1,17 @@
 package eventstore
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/segmentio/kafka-go"
 )
 
 type store struct {
-	broker   string
-	groupId  string
-	producer *kafka.Producer
-	consumer *kafka.Consumer
+	broker string
+	groupId string
+	writer *kafka.Writer
+	reader *kafka.Reader
 }
 
 func New(broker string, groupId string) EventStore_interface {
@@ -23,61 +24,62 @@ func New(broker string, groupId string) EventStore_interface {
 }
 
 func (store *store) Connect() error {
-	fmt.Printf("connecting Producer: %v\n", store.broker)
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": store.broker})
-	if err != nil {
-		return err
+	fmt.Printf("connecting to Kafka: %v\n", store.broker)
+	
+	// Create writer for producing messages
+	store.writer = &kafka.Writer{
+		Addr:     kafka.TCP(store.broker),
+		Balancer: &kafka.LeastBytes{},
 	}
-	store.producer = p
-	fmt.Printf("connection sucessful with producer : %v\n", store.broker)
-
-	fmt.Printf("connecting consumer: %v\n, on Group: %v\n", store.broker, store.groupId)
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": store.broker,
-		"group.id":          store.groupId,
-		"auto.offset.reset": "earliest",
-	})
-	if err != nil {
-		return err
-	}
-	store.consumer = c
-	fmt.Printf("connection sucessful with consumer : %v\n, on Group: %v\n", store.broker, store.groupId)
-
+	
+	// Don't create reader here - it will be created when subscribing to specific topics
+	store.reader = nil
+	
+	fmt.Printf("connection successful with Kafka: %v\n", store.broker)
 	return nil
 }
 
 func (store *store) WriteMessage(event string, topic string) error {
-	fmt.Printf("Delivering %v\n", event)
-	go func() {
-		for e := range store.producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
-				} else {
-					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
-				}
-			}
-		}
-	}()
-
-	store.producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(event),
-	}, nil)
+	fmt.Printf("Delivering %v to topic %v\n", event, topic)
+	
+	err := store.writer.WriteMessages(context.Background(),
+		kafka.Message{
+			Topic: topic,
+			Value: []byte(event),
+		},
+	)
+	
+	if err != nil {
+		fmt.Printf("Delivery failed: %v\n", err)
+		return err
+	}
+	
+	fmt.Printf("Delivered message to topic %v\n", topic)
 	return nil
 }
 
 func (store *store) SubscribeToEvents(topic string) error {
-	store.consumer.Subscribe(topic, nil)
+	// Close existing reader if any
+	if store.reader != nil {
+		store.reader.Close()
+	}
+	
+	// Configure reader for specific topic
+	store.reader = kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{store.broker},
+		Topic:   topic,
+		GroupID: store.groupId,
+	})
+
+	fmt.Printf("Subscribed to topic: %s\n", topic)
 
 	for {
-		msg, err := store.consumer.ReadMessage(-1)
+		msg, err := store.reader.ReadMessage(context.Background())
 		if err == nil {
-			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
+			fmt.Printf("Message on topic %s: %s\n", msg.Topic, string(msg.Value))
 		} else {
-			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
-			store.consumer.Close()
+			fmt.Printf("Consumer error: %v\n", err)
+			store.reader.Close()
 			return err
 		}
 	}
