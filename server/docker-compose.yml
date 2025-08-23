@@ -39,11 +39,11 @@ services:
       - kafka
     volumes:
       - ./orchistrator:/orchistrator
+      - "/dev:/dev"  # Mount entire /dev directory for device access
+      - "/sys/bus/usb:/sys/bus/usb"  # Mount USB sysfs for device enumeration
     ports:
       - "8080:8080"
-    devices:
-      - "/dev/bus/usb/003/002:/dev/ttyUSB0"  # USB device for mesh communication (mapped to ttyUSB0 inside container)
-    privileged: true  # Required for serial port access
+    privileged: true  # Required for USB and serial port access
     user: "0:0"  # Run as root to access USB devices
     group_add:
       - "20"  # Add dialout group (typically GID 20)
