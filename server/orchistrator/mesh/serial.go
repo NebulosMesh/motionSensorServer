@@ -60,7 +60,12 @@ func (s *SerialComm) ReadFrame() (*MeshMessage, error) {
 	// Parse length
 	length := binary.LittleEndian.Uint16(header)
 	if length == 0 {
-		return nil, fmt.Errorf("invalid frame length: 0")
+		return nil, fmt.Errorf("invalid frame length: 0 (header bytes: %02x %02x)", header[0], header[1])
+	}
+
+	// Validate reasonable frame length (prevent memory exhaustion)
+	if length > 4096 {
+		return nil, fmt.Errorf("frame length too large: %d (header bytes: %02x %02x)", length, header[0], header[1])
 	}
 
 	// Read data

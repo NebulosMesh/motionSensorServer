@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	broker  = "kafka:9094" // Use docker compose service name
+	broker  = "kafka:9092" // Use docker compose service name - internal port
 	groupId = "1"
 )
 

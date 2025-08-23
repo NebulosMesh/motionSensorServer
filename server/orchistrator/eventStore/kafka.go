@@ -32,6 +32,18 @@ func (store *store) Connect() error {
 		Balancer: &kafka.LeastBytes{},
 	}
 	
+	// Test the connection by attempting to write a test message
+	testMsg := kafka.Message{
+		Topic: "test-connection",
+		Value: []byte("connection-test"),
+	}
+	
+	err := store.writer.WriteMessages(context.Background(), testMsg)
+	if err != nil {
+		fmt.Printf("Kafka connection test failed: %v\n", err)
+		return fmt.Errorf("failed to connect to Kafka: %w", err)
+	}
+	
 	// Don't create reader here - it will be created when subscribing to specific topics
 	store.reader = nil
 	

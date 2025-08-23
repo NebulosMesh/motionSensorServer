@@ -114,6 +114,9 @@ func (ms *MeshServer) Stop() error {
 func (ms *MeshServer) messageProcessor() {
 	defer ms.wg.Done()
 	
+	consecutiveErrors := 0
+	maxConsecutiveErrors := 10
+	
 	for {
 		select {
 		case <-ms.ctx.Done():
@@ -121,8 +124,27 @@ func (ms *MeshServer) messageProcessor() {
 		default:
 			msg, err := ms.serialComm.ReadFrame()
 			if err != nil {
-				log.Printf("Error reading frame: %v", err)
+				consecutiveErrors++
+				if consecutiveErrors <= maxConsecutiveErrors {
+					log.Printf("Error reading frame: %v", err)
+				} else if consecutiveErrors == maxConsecutiveErrors+1 {
+					log.Printf("Too many consecutive frame errors, suppressing further error messages. Last error: %v", err)
+				}
+				// Brief pause to prevent tight error loop
+				select {
+				case <-ms.ctx.Done():
+					return
+				case <-time.After(100 * time.Millisecond):
+				}
 				continue
+			}
+			
+			// Reset error counter on successful read
+			if consecutiveErrors > 0 {
+				if consecutiveErrors > maxConsecutiveErrors {
+					log.Printf("Frame reading recovered after %d consecutive errors", consecutiveErrors)
+				}
+				consecutiveErrors = 0
 			}
 
 			if err := ms.handleMessage(msg); err != nil {
