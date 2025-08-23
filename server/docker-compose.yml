@@ -40,13 +40,24 @@ services:
     volumes:
       - ./orchistrator:/orchistrator
       - "/dev:/dev"  # Mount entire /dev directory for device access
-      - "/sys/bus/usb:/sys/bus/usb"  # Mount USB sysfs for device enumeration
+      - "/sys:/sys"  # Mount entire /sys for device information
     ports:
       - "8080:8080"
     privileged: true  # Required for USB and serial port access
     user: "0:0"  # Run as root to access USB devices
     group_add:
       - "20"  # Add dialout group (typically GID 20)
+    command: >
+      sh -c "
+        # Create ttyUSB0 device node if it doesn't exist
+        if [ ! -e /dev/ttyUSB0 ]; then
+          echo 'Creating /dev/ttyUSB0 device node...';
+          mknod /dev/ttyUSB0 c 188 0;
+          chmod 666 /dev/ttyUSB0;
+        fi;
+        # Start the main application
+        /app/main
+      "
     environment:
       - SERIAL_PORT=${SERIAL_PORT:-/dev/ttyUSB0}  # Override with env var if needed
       - BAUD_RATE=${BAUD_RATE:-115200}
