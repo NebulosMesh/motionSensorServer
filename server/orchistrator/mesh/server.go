@@ -129,6 +129,8 @@ func (ms *MeshServer) messageProcessor() {
 					log.Printf("Error reading frame: %v", err)
 				} else if consecutiveErrors == maxConsecutiveErrors+1 {
 					log.Printf("Too many consecutive frame errors, suppressing further error messages. Last error: %v", err)
+					log.Printf("Note: If you see 'frame length too large' with ASCII characters (like 'un', 't:', '--'), the ESP32 might be sending text data instead of binary protobuf frames.")
+					log.Printf("Check ESP32 firmware and ensure it's configured for mesh protocol, not debug output.")
 				}
 				// Brief pause to prevent tight error loop
 				select {

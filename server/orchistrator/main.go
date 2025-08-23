@@ -29,15 +29,31 @@ func main() {
 	log.Printf("API Port: %d", *apiPort)
 	log.Printf("Kafka Broker: %s", broker)
 
-	// Setup event store
-	eventStore := EventStore.New(broker, groupId)
-	err := eventStore.Connect()
-	if err != nil {
-		log.Printf("Warning: Failed to connect to Kafka: %v", err)
+	// Setup event store with retry logic
+	var eventStore EventStore.EventStore_interface
+	maxRetries := 5
+	retryDelay := 2 * time.Second
+	
+	log.Printf("Attempting to connect to Kafka with %d retries...", maxRetries)
+	for i := 0; i < maxRetries; i++ {
+		eventStore = EventStore.New(broker, groupId)
+		err := eventStore.Connect()
+		if err == nil {
+			log.Printf("Connected to Kafka successfully on attempt %d", i+1)
+			break
+		}
+		
+		log.Printf("Kafka connection attempt %d failed: %v", i+1, err)
+		if i < maxRetries-1 {
+			log.Printf("Retrying in %v...", retryDelay)
+			time.Sleep(retryDelay)
+			eventStore = nil
+		}
+	}
+	
+	if eventStore == nil {
+		log.Printf("Warning: Failed to connect to Kafka after %d attempts", maxRetries)
 		log.Printf("Continuing without Kafka integration...")
-		eventStore = nil
-	} else {
-		log.Printf("Connected to Kafka successfully")
 	}
 
 	// Setup mesh server

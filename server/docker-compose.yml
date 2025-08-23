@@ -36,7 +36,8 @@ services:
   orchistrator:
     build: ./orchistrator
     depends_on:
-      - kafka
+      kafka:
+        condition: service_started
     volumes:
       - ./orchistrator:/orchistrator
       - "/dev:/dev"  # Mount entire /dev directory for device access
