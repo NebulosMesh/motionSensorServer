@@ -149,8 +149,13 @@ func (ms *MeshServer) messageProcessor() {
 				consecutiveErrors = 0
 			}
 
+			log.Printf("[MSG_PROCESSOR] Successfully received message from serial port - Type: %d, DataType: %d, Origin: %s", 
+				msg.MessageType, msg.DataType, macToString(msg.OriginMacAddress))
+
 			if err := ms.handleMessage(msg); err != nil {
-				log.Printf("Error handling message: %v", err)
+				log.Printf("[MSG_PROCESSOR] Error handling message: %v", err)
+			} else {
+				log.Printf("[MSG_PROCESSOR] Message processed successfully")
 			}
 		}
 	}
@@ -271,12 +276,21 @@ func (ms *MeshServer) SendMessage(msg *MeshMessage) error {
 		return fmt.Errorf("mesh server is not running")
 	}
 
+	log.Printf("[SEND_MESSAGE] Attempting to send message - Type: %d, DataType: %d, Origin: %s, Target: %s", 
+		msg.MessageType, msg.DataType, macToString(msg.OriginMacAddress), macToString(msg.TargetMacAddress))
+
 	// Log the outgoing message
 	if err := ms.logMessageToKafka(msg, "outgoing"); err != nil {
 		log.Printf("Failed to log outgoing message to Kafka: %v", err)
 	}
 
-	return ms.serialComm.WriteFrame(msg)
+	if err := ms.serialComm.WriteFrame(msg); err != nil {
+		log.Printf("[SEND_MESSAGE] Failed to send message: %v", err)
+		return err
+	}
+
+	log.Printf("[SEND_MESSAGE] Message sent successfully via serial port")
+	return nil
 }
 
 // ConfigureNode sets the adapter type for a specific node
