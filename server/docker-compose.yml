@@ -17,6 +17,12 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - kafka-net
 
@@ -37,7 +43,7 @@ services:
     build: ./orchistrator
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./orchistrator:/orchistrator
       - "/dev:/dev"  # Mount entire /dev directory for device access

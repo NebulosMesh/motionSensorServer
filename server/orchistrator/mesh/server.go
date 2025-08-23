@@ -115,7 +115,7 @@ func (ms *MeshServer) messageProcessor() {
 	defer ms.wg.Done()
 	
 	consecutiveErrors := 0
-	maxConsecutiveErrors := 10
+	maxConsecutiveErrors := 5
 	
 	for {
 		select {

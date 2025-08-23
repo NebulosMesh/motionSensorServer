@@ -31,8 +31,8 @@ func main() {
 
 	// Setup event store with retry logic
 	var eventStore EventStore.EventStore_interface
-	maxRetries := 5
-	retryDelay := 2 * time.Second
+	maxRetries := 3
+	retryDelay := 1 * time.Second
 	
 	log.Printf("Attempting to connect to Kafka with %d retries...", maxRetries)
 	for i := 0; i < maxRetries; i++ {
