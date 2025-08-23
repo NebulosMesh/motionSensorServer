@@ -45,7 +45,7 @@ services:
     ports:
       - "8080:8080"
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"  # Bind mount the actual device
+      - "/dev/ttyUSB0:/dev/ttyUSB0:rwm"  # Bind mount the actual device with explicit permissions
     privileged: true  # Required for USB and serial port access
     user: "0:0"  # Run as root to access USB devices
     group_add:
