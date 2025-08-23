@@ -51,10 +51,10 @@ services:
     group_add:
       - "20"  # Add dialout group (typically GID 20)
     cap_add:
-      - SYS_RAWIO  # Raw I/O operations
       - SYS_ADMIN  # System administration capabilities
     security_opt:
       - apparmor:unconfined  # Disable AppArmor restrictions
+      - seccomp:unconfined   # Disable seccomp restrictions
     environment:
       - SERIAL_PORT=${SERIAL_PORT:-/dev/ttyUSB0}  # Override with env var if needed
       - BAUD_RATE=${BAUD_RATE:-115200}
