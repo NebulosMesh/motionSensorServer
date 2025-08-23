@@ -26,6 +26,7 @@ This will start:
 
 If you have an ESP32 connected via USB:
 
+#### Standard Linux Setup:
 1. **Find your serial port:**
    ```bash
    ls /dev/ttyUSB* /dev/ttyACM*
@@ -36,6 +37,28 @@ If you have an ESP32 connected via USB:
    sudo chmod 666 /dev/ttyUSB0
    # or add yourself to dialout group
    sudo usermod -a -G dialout $USER
+   ```
+
+3. **Start services:**
+   ```bash
+   cd server
+   docker-compose up -d
+   ```
+
+#### Proxmox Container Setup:
+If running in a Proxmox container with USB passthrough:
+
+1. **Find your USB device:**
+   ```bash
+   ls /dev/bus/usb/*/
+   # Example output: /dev/bus/usb/003/002
+   ```
+
+2. **Update docker-compose.yml:**
+   The docker-compose.yml file maps your USB device to `/dev/ttyUSB0` inside the container:
+   ```yaml
+   devices:
+     - "/dev/bus/usb/003/002:/dev/ttyUSB0"  # Your USB device path
    ```
 
 3. **Start services:**
