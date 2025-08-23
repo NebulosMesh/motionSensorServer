@@ -82,12 +82,29 @@ func (s *SerialComm) ReadFrame() (*MeshMessage, error) {
 	// Parse length
 	length := binary.LittleEndian.Uint16(header)
 	if length == 0 {
+		log.Printf("[SERIAL_RX] WARNING: Zero-length frame detected - possible frame sync issue")
 		return nil, fmt.Errorf("invalid frame length: 0 (header bytes: %02x %02x)", header[0], header[1])
 	}
 
-	// Validate reasonable frame length (prevent memory exhaustion)
+	// Enhanced validation with more detailed logging
 	if length > 4096 {
+		log.Printf("[SERIAL_RX] CRITICAL: Frame length too large: %d bytes (header: %02x %02x)", length, header[0], header[1])
+		log.Printf("[SERIAL_RX] This indicates frame desynchronization - ESP32 may be sending non-framed data")
+		log.Printf("[SERIAL_RX] Header as ASCII: '%c%c' (if printable)", 
+			func() byte { if header[0] >= 32 && header[0] <= 126 { return header[0] } else { return '.' } }(),
+			func() byte { if header[1] >= 32 && header[1] <= 126 { return header[1] } else { return '.' } }())
+		
+		// Try to recover by reading and discarding some bytes
+		discardBuf := make([]byte, 100)
+		if n, err := s.port.Read(discardBuf); err == nil {
+			log.Printf("[SERIAL_RX] Discarded %d bytes for recovery: %x", n, discardBuf[:n])
+		}
 		return nil, fmt.Errorf("frame length too large: %d (header bytes: %02x %02x)", length, header[0], header[1])
+	}
+
+	// Warn about suspiciously large but valid frames
+	if length > 200 {
+		log.Printf("[SERIAL_RX] WARNING: Large frame detected: %d bytes - may indicate buffer overflow", length)
 	}
 
 	log.Printf("[SERIAL_RX] Frame length: %d bytes", length)
@@ -95,19 +112,34 @@ func (s *SerialComm) ReadFrame() (*MeshMessage, error) {
 	// Read data
 	data := make([]byte, length)
 	if _, err := io.ReadFull(s.port, data); err != nil {
+		log.Printf("[SERIAL_RX] Failed to read %d bytes of frame data: %v", length, err)
 		return nil, fmt.Errorf("failed to read data: %w", err)
 	}
 
 	log.Printf("[SERIAL_RX] Raw data received (%d bytes): %x", len(data), data)
 
+	// Check if data looks like ASCII (debugging ESP32 text output)
+	asciiCount := 0
+	for _, b := range data {
+		if b >= 32 && b <= 126 {
+			asciiCount++
+		}
+	}
+	if asciiCount > len(data)/2 {
+		log.Printf("[SERIAL_RX] WARNING: Data appears to be %d%% ASCII text - ESP32 may be sending debug output instead of protobuf", (asciiCount*100)/len(data))
+		log.Printf("[SERIAL_RX] Data as ASCII: %q", string(data))
+	}
+
 	// Unmarshal protobuf message
 	var msg MeshMessage
 	if err := proto.Unmarshal(data, &msg); err != nil {
-		log.Printf("[SERIAL_RX] Failed to unmarshal protobuf data: %x", data)
+		log.Printf("[SERIAL_RX] UNMARSHAL FAILED: %v", err)
+		log.Printf("[SERIAL_RX] Failed protobuf data (%d bytes): %x", len(data), data)
+		log.Printf("[SERIAL_RX] Data as ASCII (if readable): %q", string(data))
 		return nil, fmt.Errorf("failed to unmarshal message: %w", err)
 	}
 
-	log.Printf("[SERIAL_RX] Successfully parsed message - Type: %d, DataType: %d, Origin: %x, Target: %x, HopCount: %d, DataLen: %d", 
+	log.Printf("[SERIAL_RX] ✓ Successfully parsed message - Type: %d, DataType: %d, Origin: %x, Target: %x, HopCount: %d, DataLen: %d", 
 		msg.MessageType, msg.DataType, msg.OriginMacAddress, msg.TargetMacAddress, msg.HopCount, len(msg.Data))
 	
 	if len(msg.Data) > 0 {
@@ -120,4 +152,32 @@ func (s *SerialComm) ReadFrame() (*MeshMessage, error) {
 // Close closes the serial port
 func (s *SerialComm) Close() error {
 	return s.port.Close()
+}
+
+// FlushBuffer attempts to clear any buffered data from the serial port
+func (s *SerialComm) FlushBuffer() error {
+	log.Printf("[SERIAL_FLUSH] Attempting to flush serial buffer")
+	
+	// Try to read any remaining data with a short timeout
+	buffer := make([]byte, 1024)
+	totalFlushed := 0
+	
+	for i := 0; i < 10; i++ { // Try up to 10 times
+		n, err := s.port.Read(buffer)
+		if err != nil {
+			if err == io.EOF {
+				break // No more data
+			}
+			log.Printf("[SERIAL_FLUSH] Error during flush: %v", err)
+			break
+		}
+		if n == 0 {
+			break // No data available
+		}
+		totalFlushed += n
+		log.Printf("[SERIAL_FLUSH] Flushed %d bytes: %x", n, buffer[:n])
+	}
+	
+	log.Printf("[SERIAL_FLUSH] Total flushed: %d bytes", totalFlushed)
+	return nil
 }

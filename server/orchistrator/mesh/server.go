@@ -126,12 +126,22 @@ func (ms *MeshServer) messageProcessor() {
 			if err != nil {
 				consecutiveErrors++
 				if consecutiveErrors <= maxConsecutiveErrors {
-					log.Printf("Error reading frame: %v", err)
+					log.Printf("[MSG_PROCESSOR] Error reading frame (#%d): %v", consecutiveErrors, err)
 				} else if consecutiveErrors == maxConsecutiveErrors+1 {
-					log.Printf("Too many consecutive frame errors, suppressing further error messages. Last error: %v", err)
-					log.Printf("Note: If you see 'frame length too large' with ASCII characters (like 'un', 't:', '--'), the ESP32 might be sending text data instead of binary protobuf frames.")
-					log.Printf("Check ESP32 firmware and ensure it's configured for mesh protocol, not debug output.")
+					log.Printf("[MSG_PROCESSOR] Too many consecutive frame errors (%d), suppressing further error messages. Last error: %v", consecutiveErrors, err)
+					log.Printf("[MSG_PROCESSOR] Note: If you see 'frame length too large' with ASCII characters (like 'un', 't:', '--'), the ESP32 might be sending text data instead of binary protobuf frames.")
+					log.Printf("[MSG_PROCESSOR] Check ESP32 firmware and ensure it's configured for mesh protocol, not debug output.")
+					log.Printf("[MSG_PROCESSOR] Consider restarting ESP32 or checking serial connection.")
 				}
+				
+				// After many consecutive errors, try to flush the buffer
+				if consecutiveErrors == 10 {
+					log.Printf("[MSG_PROCESSOR] Attempting buffer flush after %d consecutive errors", consecutiveErrors)
+					if flushErr := ms.serialComm.FlushBuffer(); flushErr != nil {
+						log.Printf("[MSG_PROCESSOR] Buffer flush failed: %v", flushErr)
+					}
+				}
+				
 				// Brief pause to prevent tight error loop
 				select {
 				case <-ms.ctx.Done():
