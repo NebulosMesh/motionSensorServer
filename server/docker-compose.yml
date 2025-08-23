@@ -41,6 +41,7 @@ services:
       - ./orchistrator:/orchistrator
       - "/dev:/dev"  # Mount entire /dev directory for device access
       - "/sys:/sys"  # Mount entire /sys for device information
+      - "/run/udev:/run/udev:ro"  # Mount udev for device management
     ports:
       - "8080:8080"
     devices:
@@ -49,6 +50,11 @@ services:
     user: "0:0"  # Run as root to access USB devices
     group_add:
       - "20"  # Add dialout group (typically GID 20)
+    cap_add:
+      - SYS_RAWIO  # Raw I/O operations
+      - SYS_ADMIN  # System administration capabilities
+    security_opt:
+      - apparmor:unconfined  # Disable AppArmor restrictions
     environment:
       - SERIAL_PORT=${SERIAL_PORT:-/dev/ttyUSB0}  # Override with env var if needed
       - BAUD_RATE=${BAUD_RATE:-115200}
