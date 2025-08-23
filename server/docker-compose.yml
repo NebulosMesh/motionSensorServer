@@ -44,6 +44,9 @@ services:
     devices:
       - "/dev/bus/usb/003/002:/dev/ttyUSB0"  # USB device for mesh communication (mapped to ttyUSB0 inside container)
     privileged: true  # Required for serial port access
+    user: "0:0"  # Run as root to access USB devices
+    group_add:
+      - "20"  # Add dialout group (typically GID 20)
     environment:
       - SERIAL_PORT=${SERIAL_PORT:-/dev/ttyUSB0}  # Override with env var if needed
       - BAUD_RATE=${BAUD_RATE:-115200}

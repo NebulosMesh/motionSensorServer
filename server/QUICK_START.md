@@ -54,17 +54,35 @@ If running in a Proxmox container with USB passthrough:
    # Example output: /dev/bus/usb/003/002
    ```
 
-2. **Update docker-compose.yml:**
+2. **Check device permissions:**
+   ```bash
+   ls -la /dev/bus/usb/003/002
+   # Should show: crw-rw-r-- 1 root root 189, 257 ...
+   ```
+
+3. **Update docker-compose.yml:**
    The docker-compose.yml file maps your USB device to `/dev/ttyUSB0` inside the container:
    ```yaml
    devices:
      - "/dev/bus/usb/003/002:/dev/ttyUSB0"  # Your USB device path
+   user: "0:0"  # Run as root for USB access
+   privileged: true
    ```
 
-3. **Start services:**
+4. **Start services:**
    ```bash
    cd server
    docker-compose up -d
+   ```
+
+5. **If you still get permission errors:**
+   ```bash
+   # Option 1: Make device world-writable (temporary fix)
+   sudo chmod 666 /dev/bus/usb/003/002
+   
+   # Option 2: Add your user to dialout group
+   sudo usermod -a -G dialout $USER
+   # Then logout and login again
    ```
 
 ### 3. Environment Variables
