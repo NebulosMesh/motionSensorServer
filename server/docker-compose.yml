@@ -80,6 +80,10 @@ services:
     depends_on:
       orchistrator:
         condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - kafka-net
 
 networks:
   kafka-net:
