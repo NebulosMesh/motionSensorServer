@@ -11,6 +11,7 @@ export default function Index() {
               alt="React Router"
               className="hidden w-full dark:block"
             />
+            <br />
             <h1>Playtopia POC Admin Dashboard</h1>
           </div>
         </header>

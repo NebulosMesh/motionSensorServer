@@ -1,33 +1,38 @@
-import ApiService from "~/services/apiService";
+import ApiService, { dev_ApiService } from "~/services/apiService";
+import type { IApiResponse } from "~/interfaces/IApiService";
 import type { Route } from "../+types/root";
+import type { INode, INodes } from "~/interfaces/INodes";
+import NodeCard from "~/components/NodeCard/nodeCard";
 
-export async function loader({ request }: Route.LoaderArgs) {
-  //   const nodes = ApiService("getNodes");
-  const nodes = [
-    { id: "1", status: "active" },
-    { id: "2", status: "inactive" },
-    { id: "3", status: "active" },
-    { id: "4", status: "inactive" },
-    { id: "5", status: "active" },
-    { id: "6", status: "inactive" },
-  ];
-  return nodes;
+export async function loader({}: Route.LoaderArgs) {
+  // const response = (await ApiService("getNodes")) as ApiResponse;
+  const response = (await dev_ApiService("getNodes")) as IApiResponse;
+  console.log("NODES: ", response);
+
+  if (!response.success) {
+    throw new Response(response.error, {
+      status: 500,
+    });
+  }
+  if (response.data === undefined) {
+    console.log("No nodes found");
+    throw new Response(response.error, {
+      status: 404,
+    });
+  }
+
+  return (response.data as INodes) || [];
 }
 
-type Node = { id: string; status: string };
-
 export default function Nodes({ loaderData }: Route.ComponentProps) {
-  const nodes = loaderData as unknown as Node[];
+  const nodes = loaderData as INodes | undefined;
   return (
-    <div className="p-4 justify-center">
+    <div className="p-6 justify-center">
       <h1 className="text-center">Nodes</h1>
       <br />
-      <div className="nodes-container grid grid-cols-3 gap-2">
-        {nodes?.map((node, index) => (
-          <div className="node-card h-[100px] rounded-2xl bg-gray-500 p-2">
-            <p>Node {node.id}</p>
-            <p>status: {node.status}</p>
-          </div>
+      <div className="nodes-container w-[80%] grid grid-cols-3 gap-4 justify-center m-auto">
+        {nodes?.map((node: INode, index: any) => (
+          <NodeCard key={index} nodeData={node} />
         ))}
       </div>
     </div>

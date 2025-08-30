@@ -1,34 +1,42 @@
 import { useFetcher } from "react-router";
 import type { Route } from "../+types/root";
-import ApiService from "../services/apiService";
+import ApiService, { dev_ApiService } from "../services/apiService";
+import type { IApiResponse } from "~/interfaces/IApiService";
+import { useState } from "react";
+import { formatTime } from "~/services/formatDateTime";
 
 export async function loader({ request }: Route.LoaderArgs) {
   // Get server status from API
   //   const status = await ApiService<{ status: string }>("getStatus");
-  const status = "running"; // Placeholder status
-  return { status };
+  const response = (await dev_ApiService("getStatus")) as IApiResponse;
+  console.log("SERVER STATUS: ", response);
+
+  return response;
 }
 
-export default function Server({ loaderData }: Route.ComponentProps) {
+export default function Server({ loaderData }: { loaderData?: IApiResponse }) {
   const fetcher = useFetcher<{ status: string }>();
+  const [serverData, setServerData] = useState(
+    loaderData?.data ?? { running: false }
+  );
 
   // Show loading state if fetcher is submitting
   const isSubmitting = fetcher.state === "submitting";
-  const status = fetcher.data?.status ?? loaderData?.status;
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-8 bg-gray-500 rounded-lg shadow-md text-center">
-      <h1 className="text-3xl font-bold mb-4">Server Control</h1>
+    <div className="max-w-md mx-auto mt-10 p-8 bg-emerald-700 rounded-lg shadow-md text-center">
+      <h1 className="text-3xl font-bold mb-4">Server Statuses</h1>
       <p className="text-lg mb-6">
-        Status:{" "}
-        <strong
-          className={
-            status === "running"
-              ? "text-green-600 font-semibold"
-              : "text-red-600 font-semibold"
-          }>
-          {status}
-        </strong>
+        Running: <span>{serverData.running.toString()}</span>
+      </p>
+      <p className="text-lg mb-6">
+        Total Nodes: <span>{serverData.totalNodes}</span>
+      </p>
+      <p className="text-lg mb-6">
+        Online Nodes: <span>{serverData.onlineNodes}</span>
+      </p>
+      <p className="text-lg mb-6">
+        Last Checked: <span>{formatTime(serverData.timestamp)}</span>
       </p>
       <fetcher.Form method="post" className="flex gap-4 justify-center mb-4">
         <button
