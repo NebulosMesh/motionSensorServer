@@ -7,11 +7,11 @@ import { formatTime } from "~/services/formatDateTime";
 
 export async function loader({ request }: Route.LoaderArgs) {
   // Get server status from API
-  //   const status = await ApiService<{ status: string }>("getStatus");
-  const response = (await dev_ApiService("getStatus")) as IApiResponse;
-  console.log("SERVER STATUS: ", response);
+     const status = await ApiService<{ status: string }>("getStatus");
+  //const response = (await dev_ApiService("getStatus")) as IApiResponse;
+  console.log("SERVER STATUS: ", status);
 
-  return response;
+  return status;
 }
 
 export default function Server({ loaderData }: { loaderData?: IApiResponse }) {
